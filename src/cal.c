@@ -14,20 +14,32 @@
 
 #include "cal.h"
 
-void cal_error_(const char *s)
+static void
+cal_error_(const char *s)
 {
   fprintf(stderr, "CAL ERROR: %s\n", s);
 }
 
-void cal_debug_(int level,const char *s)
+
+#ifdef DEBUG
+
+static void
+cal_debug_(int level,const char *s)
 {
   fprintf(stderr, "CAL DEBUG: %s\n", s);
 }
-
 void (* cal_debug_log)(int level, const char *str) = cal_debug_;
+
+#else
+
+void (* cal_debug_log)(int level, const char *str) = 0;
+
+#endif
+
 void (* cal_error_log)(const char *str) = cal_error_;
 
-void cal_error(const char *format, ...)
+void
+cal_error(const char *format, ...)
 {
   char s[1024];
   va_list va;
@@ -42,7 +54,8 @@ void cal_error(const char *format, ...)
   }
 }
 
-void cal_debug(uint32_t level,const char *format, ...)
+void
+cal_debug(uint32_t level,const char *format, ...)
 {
   char s[1024];
   va_list va;
@@ -57,16 +70,19 @@ void cal_debug(uint32_t level,const char *format, ...)
   }
 }
 
-static char header_name_buf[CAL_MAX_NAME_LEN+1];
+static char
+header_name_buf[CAL_MAX_NAME_LEN+1];
 
-static const char *header_name(struct conf_block_header *block_hdr)
+static const char *
+header_name(struct cal_block_header *block_hdr)
 {
   strncpy(header_name_buf, block_hdr->name, CAL_MAX_NAME_LEN);
   header_name_buf[CAL_MAX_NAME_LEN] = 0;
   return header_name_buf;
 }
 
-static uint32_t crc32_tab[] = {
+static const uint32_t
+crc32_tab[] = {
   0x00000000,0x77073096,0xEE0E612C,0x990951BA,0x076DC419,0x706AF48F,0xE963A535,
   0x9E6495A3,0x0EDB8832,0x79DCB8A4,0xE0D5E91E,0x97D2D988,0x09B64C2B,0x7EB17CBD,
   0xE7B82D07,0x90BF1D91,0x1DB71064,0x6AB020F2,0xF3B97148,0x84BE41DE,0x1ADAD47D,
@@ -106,7 +122,7 @@ static uint32_t crc32_tab[] = {
   0xB40BBE37,0xC30C8EA1,0x5A05DF1B,0x2D02EF8D
 };
 
-uint32_t
+static uint32_t
 calculate_crc32( const uint8_t *buf, size_t size)
 {
   if(size)
@@ -122,7 +138,8 @@ calculate_crc32( const uint8_t *buf, size_t size)
   return 0;
 }
 
-int cal_nand_is_bad_eraseblock(int fd, loff_t off)
+static int
+cal_nand_is_bad_eraseblock(int fd, loff_t off)
 {
   int rv;
   if ( (rv = ioctl(fd, MEMGETBADBLOCK, &off)) < 0 )
@@ -133,23 +150,24 @@ int cal_nand_is_bad_eraseblock(int fd, loff_t off)
   return rv;
 }
 
-int map_erase_blocks(struct cal *c,struct  cal_config *conf, uint32_t blkcnt, loff_t *off)
+static int
+map_erase_blocks(struct cal *c,struct  cal_config *conf, uint32_t blkcnt, loff_t *off)
 {
-  loff_t from;
-  loff_t to;
+  loff_t absolute;
+  loff_t relative;
   uint32_t i;
 
-  from = *off;
+  absolute = *off;
   conf->blkcnt = blkcnt;
 
   if ( !blkcnt )
   {
-    *off = from;
+    *off = absolute;
     return CAL_OK;
   }
 
   blkcnt--;
-  to = 0;
+  relative = 0;
   i = 0;
 
   while ( 1 )
@@ -157,15 +175,15 @@ int map_erase_blocks(struct cal *c,struct  cal_config *conf, uint32_t blkcnt, lo
     if ( conf->write_once )
     {
 map_it:
-      cal_debug(2, "erase block at 0x%016llx mapping to %s 0x%016llx", from, conf->name, to);
-      conf->map[i].to = to;
-      conf->map[i].from = from;
-      to += c->erasesize;
+      cal_debug(2, "erase block at 0x%016llx mapping to %s 0x%016llx", absolute, conf->name, relative);
+      conf->map[i].relative = relative;
+      conf->map[i].absolute = absolute;
+      relative += c->erasesize;
       i++;
     }
     else
     {
-      int is_bad_blk = cal_nand_is_bad_eraseblock(c->mtd_fd, from);
+      int is_bad_blk = cal_nand_is_bad_eraseblock(c->mtd_fd, absolute);
 
       if ( is_bad_blk  < 0 )
         return CAL_ERROR;
@@ -173,21 +191,22 @@ map_it:
       if ( !is_bad_blk )
         goto map_it;
 
-      cal_debug(2, "bad erase block at 0x%16llx", from);
+      cal_debug(2, "bad erase block at 0x%16llx", absolute);
       blkcnt++;
     }
 
-    from += c->erasesize;
+    absolute += c->erasesize;
     if ( !blkcnt )
     {
-      *off = from;
+      *off = absolute;
       return CAL_OK;
     }
     blkcnt--;
   }
 }
 
-int scan_erase_blocks(struct cal *c,unsigned int blkcnt)
+static int
+scan_erase_blocks(struct cal *c,unsigned int blkcnt)
 {
   loff_t off;
 
@@ -241,7 +260,8 @@ err:
   return CAL_ERROR;
 }
 
-int cal_nand_scan_ebs(struct cal *c)
+int
+cal_nand_scan_ebs(struct cal *c)
 {
   uint32_t i = 0;
   uint32_t blkcnt = 0;
@@ -281,7 +301,8 @@ err:
   return CAL_ERROR;
 }
 
-int cal_nand_init(struct cal *c)
+int
+cal_nand_init(struct cal *c)
 {
   int rv = 0;
   uint32_t select_type;
@@ -329,7 +350,8 @@ err:
   return rv;
 }
 
-void onen_set_otp_mode(int fd, uint32_t mode)
+static void
+onen_set_otp_mode(int fd, uint32_t mode)
 {
   int select_mode  = (mode >= 1 ? MTD_OTP_USER : MTD_OTP_OFF);
 
@@ -358,17 +380,19 @@ int cal_nand_lock_otp_user_region(int fd)
   return rv;
 }
 
-static int sem_unlock(sem_t *sem)
+static int
+sem_unlock(sem_t *sem)
 {
   sem_post(sem);
   return sem_close(sem);
 }
 
-static int sem_lock(sem_t **sem)
+static int
+sem_lock(sem_t **sem)
 {
   int rv = CAL_FALSE;
 
-  *sem = sem_open("nokiacal", O_CREAT, 0600, 1);
+  *sem = sem_open("nokiacal3", O_CREAT, 0600, 1);
 
   if ( *sem )
   {
@@ -379,15 +403,17 @@ static int sem_lock(sem_t **sem)
   return rv;
 }
 
-static int cal_nand_finish(int fd)
+int
+cal_nand_finish(int fd)
 {
   return close(fd);
 }
 
-static void free_block_lists(struct cal *c)
+static void
+free_block_lists(struct cal *c)
 {
-  struct conf_block *block;
-  struct conf_block *next;
+  struct cal_block *block;
+  struct cal_block *next;
 
   block = c->main_block_list;
   while ( block )
@@ -443,7 +469,8 @@ int cal_lock_otp_area_(int fd, uint32_t select_mode)
     return CAL_ERROR;
 }
 
-signed int cal_nand_erase_area(struct cal *c, struct cal_config *conf)
+int
+cal_nand_erase_area(struct cal *c, struct cal_config *conf)
 {
   uint32_t i;
 
@@ -454,14 +481,14 @@ signed int cal_nand_erase_area(struct cal *c, struct cal_config *conf)
     {
       struct erase_info_user ei;
 
-      cal_debug(1, "erasing block at 0x%08x", map->from);
+      cal_debug(1, "erasing block at 0x%08x", map->absolute);
 
-      ei.start = map->from;
+      ei.start = map->absolute;
       ei.length = c->erasesize;
 
       if ( ioctl(c->mtd_fd, MEMERASE, &ei) < 0 )
       {
-        cal_error("MEMERASE 0x%08x: %s", map->from, strerror(errno));
+        cal_error("MEMERASE 0x%08x: %s", map->absolute, strerror(errno));
         return CAL_ERROR;
         break;
       }
@@ -472,7 +499,8 @@ signed int cal_nand_erase_area(struct cal *c, struct cal_config *conf)
   return CAL_OK;
 }
 
-struct conf_block *find_block(struct conf_block *block, const char *name)
+static struct cal_block *
+find_block(struct cal_block *block, const char *name)
 {
 
   while ( block )
@@ -488,9 +516,10 @@ struct conf_block *find_block(struct conf_block *block, const char *name)
   return block;
 }
 
-static struct conf_block *find_block_type(struct cal *c, const char *name, uint16_t type)
+static struct cal_block *
+find_block_type(struct cal *c, const char *name, uint16_t type)
 {
-  struct conf_block *rv;
+  struct cal_block *rv;
 
   if ( type & CAL_FLAG_USER )
   {
@@ -508,7 +537,8 @@ static struct conf_block *find_block_type(struct cal *c, const char *name, uint1
   return rv;
 }
 
-static int get_offset(struct cal *c,struct  cal_config *config, off_t addr, off_t *off)
+static int
+get_offset(struct cal *c,struct  cal_config *config, off_t addr, off_t *off)
 {
   int blkcnt;
   struct cal_eraseblock_map *map;
@@ -521,21 +551,22 @@ static int get_offset(struct cal *c,struct  cal_config *config, off_t addr, off_
   if ( blkcnt )
   {
     i = 0;
-    while ( map->to > addr || addr >= erasesize + map->to )
+    while ( map->relative > addr || addr >= erasesize + map->relative )
     {
       i++;
       if ( i == blkcnt )
         return CAL_ERROR;
       map++;
     }
-    *off = map->from + addr % erasesize;
+    *off = map->absolute + addr % erasesize;
     return CAL_OK;
   }
 
   return CAL_ERROR;
 }
 
-static int cal_nand_read(struct cal *c, struct cal_config *config, off_t addr, uint8_t *buf, off_t len)
+int
+cal_nand_read(struct cal *c, struct cal_config *config, off_t addr, uint8_t *buf, off_t len)
 {
   size_t count;
   uint32_t erasesize;
@@ -599,7 +630,8 @@ err:
 }
 
 
-static int cal_nand_read_block_data(struct cal *c, struct cal_config *config, struct conf_block *block)
+static int
+cal_nand_read_block_data(struct cal *c, struct cal_config *config, struct cal_block *block)
 {
   void *data;
 
@@ -650,9 +682,10 @@ err:
   return CAL_ERROR;
 }
 
-static int cal_read_block_(struct cal *c, const char *name, uint8_t **data_out, uint32_t *data_len, uint16_t type)
+int
+cal_read_block_(struct cal *c, const char *name, void **data_out, unsigned long *data_len, unsigned long type)
 {
-  struct conf_block *block;
+  struct cal_block *block;
   struct cal_config *config;
 
   if ( strlen(name) > CAL_MAX_NAME_LEN )
@@ -696,7 +729,8 @@ err:
   return CAL_ERROR;
 }
 
-int check_block_header(struct cal *c, struct cal_config *config, off_t addr, struct conf_block_header *block_header)
+static int
+check_block_header(struct cal *c, struct cal_config *config, off_t addr, struct cal_block_header *block_header)
 {
   uint32_t crc;
 
@@ -731,7 +765,7 @@ int check_block_header(struct cal *c, struct cal_config *config, off_t addr, str
     return CAL_ERROR;
   }
 
-  if ( c->erasesize + config->map[config->blkcnt - 1].to < addr + block_header->len + 4 )
+  if ( c->erasesize + config->map[config->blkcnt - 1].relative < addr + block_header->len + 4 )
   {
     cal_error("block at addr %08x runs over device size", addr);
     return CAL_ERROR;
@@ -740,16 +774,17 @@ int check_block_header(struct cal *c, struct cal_config *config, off_t addr, str
   return CAL_OK;
 }
 
-void insert_block(struct cal *c, struct conf_block *block)
+static void
+insert_block(struct cal *c, struct cal_block *block)
 {
   uint8_t current_version;
   uint8_t version;
 
-  struct conf_block **list;
+  struct cal_block **list;
 
-  struct conf_block *next;
-  struct conf_block *found;
-  struct conf_block *current;
+  struct cal_block *next;
+  struct cal_block *found;
+  struct cal_block *current;
 
   block->next = 0;
 
@@ -828,14 +863,15 @@ out:
     *list = block;
 }
 
-int scan_block_headers(struct cal *c, struct cal_config *config, uint16_t type)
+static int
+scan_block_headers(struct cal *c, struct cal_config *config, uint16_t type)
 {
-  struct conf_block *block;
+  struct cal_block *block;
   off_t addr;
   uint32_t offset;
-  struct conf_block_header block_header;
+  struct cal_block_header block_header;
 
-  offset = c->erasesize + config->map[config->blkcnt - 1].to;
+  offset = c->erasesize + config->map[config->blkcnt - 1].relative;
   addr = 0;
 
   while ( 1 )
@@ -893,7 +929,7 @@ int scan_block_headers(struct cal *c, struct cal_config *config, uint16_t type)
         break;
       }
 
-      block = (struct conf_block *)malloc(sizeof(struct conf_block));
+      block = (struct cal_block *)malloc(sizeof(struct cal_block));
 
       if ( !block )
       {
@@ -922,13 +958,14 @@ out:
 
 }
 
-int cal_init_(struct cal **cal_out)
+int
+cal_init_(struct cal **cal_out)
 {
   struct cal *c;
   int rv;
   int config;
-  struct conf_block_header config1_block_header;
-  struct  conf_block_header config2_block_header;
+  struct cal_block_header config1_block_header;
+  struct  cal_block_header config2_block_header;
 
   cal_debug(2, "cal_init() called");
 
@@ -1078,7 +1115,8 @@ out:
   return rv;
 }
 
-int cal_lock_otp_area(struct cal *c, uint32_t flag)
+int
+cal_lock_otp_area(struct cal *c, uint32_t flag)
 {
   int rv = CAL_ERROR;
   sem_t *sem;
@@ -1095,17 +1133,21 @@ int cal_lock_otp_area(struct cal *c, uint32_t flag)
   return rv;
 }
 
-int cal_read_block(struct cal *c, const char *name, uint8_t **data_out, uint32_t *len, uint16_t type)
+int  cal_read_block(struct cal*    cal,
+                    const char*    name,
+                    void**         ptr,
+                    unsigned long* len,
+                    unsigned long  flags)
 {
   int rv=CAL_ERROR;
   sem_t *sem;
 
   if ( sem_lock(&sem) )
   {
-    if ( cal_init_(&c) >= 0 )
+    if ( cal_init_(&cal) >= 0 )
     {
-      rv = cal_read_block_(c, name, data_out, len, type);
-      cal_finish_(c);
+      rv = cal_read_block_(cal, name, ptr, len, flags);
+      cal_finish_(cal);
     }
     sem_unlock(sem);
   }
@@ -1116,8 +1158,11 @@ int cal_read_block(struct cal *c, const char *name, uint8_t **data_out, uint32_t
 void main()
 {
   struct cal c;
-  uint8_t* data;
-  int len;
-  cal_read_block(&c,"phone-i",&data,&len,1);
-
+  void* data;
+  unsigned long len;
+  if(cal_read_block(&c,"content-ver",&data,&len,1) == CAL_OK)
+  {
+    printf("%s\n",(char*)data);
+    free(data);
+  }
 }
