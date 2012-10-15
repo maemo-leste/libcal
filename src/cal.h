@@ -35,8 +35,8 @@ extern "C" {
 */
 struct cal_eraseblock_map
 {
-  uint32_t relative; /* to */
-  uint32_t absolute; /* from */
+  off_t relative;
+  off_t absolute;
 };
 
 /* Description of CAL area */
@@ -105,7 +105,6 @@ struct cal
   struct cal_config config_wp;
   uint32_t user_selectable;
   uint32_t rfu2;
-  uint32_t rfu3;
 };
 
 extern void (* cal_debug_log)(int level, const char *str);

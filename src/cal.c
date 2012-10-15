@@ -359,7 +359,8 @@ onen_set_otp_mode(int fd, uint32_t mode)
     cal_error("onen_set_otp_mode: ioctl OTPSELECT");
 }
 
-int cal_nand_lock_otp_user_region(int fd)
+int
+cal_nand_lock_otp_user_region(int fd)
 {
   int rv;
   struct otp_info info;
@@ -1030,14 +1031,17 @@ cal_init_(struct cal **cal_out)
     cal_debug(0, "choosing second half");
     c->config_in_use = 1;
 
-    goto check_header;
   }
-
-  if ( (config2_block_header.block_version > 0xBEu && config1_block_header.block_version <= 0x3Fu) ||
+  else if ( (config2_block_header.block_version > 0xBEu && config1_block_header.block_version <= 0x3Fu) ||
        (config2_block_header.block_version < config1_block_header.block_version) )
   {
     cal_debug(0, "choosing first half");
     c->config_in_use = 0;
+  }
+  else
+  {
+    cal_debug(0, "choosing second half");
+    c->config_in_use = 1;
   }
 
 check_header:
@@ -1155,14 +1159,488 @@ int  cal_read_block(struct cal*    cal,
   return rv;
 }
 
+
+static int
+verify_write(struct cal *c, const void* data, off_t offset)
+{
+  uint8_t buf[2048];
+  int i;
+
+  if ( lseek(c->mtd_fd, offset, SEEK_SET) < 0 )
+  {
+    cal_error("verify_write: lseek %08x: %s", offset, strerror(errno));
+    return CAL_ERROR;
+  }
+
+  if ( c->blocksize != read(c->mtd_fd, buf, c->blocksize) )
+  {
+    cal_error("verify_write: read (%d bytes at around %08x): %s",
+              c->blocksize, offset, strerror(errno));
+    return CAL_ERROR;
+  }
+
+  for(i=0; i<c->blocksize; i++)
+  {
+    if(((uint8_t*)data)[i] != buf[i])
+      break;
+  }
+  if (c->blocksize &&  ( i < c->blocksize && ((uint8_t*)data)[i] != buf[i]) )
+  {
+    cal_error("verify error at paddr 0x%08x: read 0x%02x, want 0x%02x",
+              ((uint8_t*)offset)+i,
+              buf[i],
+              ((uint8_t*)data)[i]);
+    return CAL_ERROR;
+  }
+
+  return CAL_OK;
+}
+
+int cal_nand_write(struct cal *c, struct cal_config *area, off_t addr, const void* data, unsigned int len)
+{
+  int rv = CAL_OK;
+  uint32_t erasesize;
+  uint32_t bytes;
+  uint32_t i;
+  off_t offset;
+
+  erasesize = c->mtd_info.erasesize;
+
+  if ( addr % c->blocksize ||
+       len % c->blocksize )
+  {
+    cal_error("nand_write: both addr and len must be aligned on page boundary (0x%08x, %d)",
+              addr,
+              len,
+              len / c->blocksize);
+    return CAL_ERROR;
+  }
+
+  if ( c->user_selectable && area->write_once )
+    onen_set_otp_mode(c->mtd_fd, 1);
+
+  if ( !len )
+    goto out;
+
+  while ( 1 )
+  {
+    if ( erasesize - addr % erasesize > len )
+      bytes = len;
+    else
+      bytes = erasesize - addr % erasesize;
+
+    if ( get_offset(c, area, addr, &offset) < 0 )
+    {
+      cal_error("nand_write: invalid addr: 0x%08x", addr);
+      goto err;
+    }
+
+    cal_debug(2, "nand_write: %d bytes to 0x%08x", bytes, offset);
+
+    if ( bytes / c->blocksize > 0 )
+      break;
+
+next:
+
+    len -= bytes;
+
+    if ( !len )
+      goto out;
+
+    addr += bytes;
+  }
+
+  i = 0;
+
+  while ( 1 )
+  {
+    if ( lseek(c->mtd_fd, offset, 0) < 0 )
+    {
+      cal_error("nand_write: lseek %08x: %s", offset, strerror(errno));
+      goto err;
+    }
+
+    if ( c->blocksize != write(c->mtd_fd, data, c->blocksize) )
+    {
+      cal_error("nand_write: write (%d bytes at around %08x): %s",
+                bytes, offset, strerror(errno));
+      goto err;
+    }
+
+    if(verify_write(c,data,offset) < 0)
+      goto err;
+
+    offset += c->blocksize;
+    data += c->blocksize;
+
+    i++;
+
+    if ( i == bytes / c->blocksize )
+      goto next;
+  }
+
+err:
+  rv =  CAL_ERROR;
+
+out:
+  if ( c->user_selectable && area->write_once )
+    onen_set_otp_mode(c->mtd_fd, 0);
+
+  return rv;
+}
+
+static int
+store_block(struct cal *c, struct cal_config *conf, struct cal_block * block, uint32_t len, unsigned long flags)
+{
+  int rv;
+  uint8_t* buf = (uint8_t*)malloc(len);
+  uint8_t* p = buf;
+
+  if ( !buf )
+  {
+    cal_error("store_block: malloc buf");
+    goto err;
+  }
+
+  memcpy(p, &block->hdr, CAL_HEADER_LEN);
+  memcpy(p += sizeof(block->hdr), block->data, block->hdr.len);
+  memset(p + block->hdr.len, 0xFF, len - block->hdr.len - CAL_HEADER_LEN);
+
+  if ( !conf->valid && (!c->user_selectable || !(flags & CAL_FLAG_WRITE_ONCE)) )
+  {
+    cal_debug(0, "initializing %s config area", conf->name);
+    if ( cal_nand_erase_area(c, conf) < 0 )
+    {
+      free(buf);
+      goto err;
+    }
+  }
+
+  rv = cal_nand_write(c, conf, conf->first_empty, buf, len);
+  free(buf);
+
+  if ( rv < 0 )
+  {
+err:
+    return CAL_ERROR;
+  }
+
+  if ( !conf->valid )
+    conf->valid = 1;
+
+  block->addr = conf->first_empty;
+  insert_block(c, block);
+  conf->first_empty += len;
+  return CAL_OK;
+}
+
+static void
+set_header(struct cal_block* block,const char* name,uint8_t version, const void* data, uint32_t len, unsigned long flags)
+{
+  /* magic */
+  memcpy(block->hdr.magic, CAL_BLOCK_HEADER_MAGIC, sizeof(block->hdr.magic));
+
+  /* header version */
+  block->hdr.hdr_version = CAL_HEADER_VERSION;
+
+  /* block version */
+  block->hdr.block_version = version;
+
+  /* flags */
+  block->hdr.flags = 0;
+  if ( flags & CAL_FLAG_USER )
+    block->hdr.flags = CAL_BLOCK_FLAG_USER;
+  if ( flags & CAL_FLAG_WRITE_ONCE )
+    block->hdr.flags |= CAL_BLOCK_FLAG_WRITE_ONCE;
+
+  /* name */
+  memset(block->hdr.name, 0, sizeof(block->hdr.name));
+  strncpy(block->hdr.name, name, CAL_MAX_NAME_LEN);
+  memcpy(block->data, data, len);
+
+  /* length */
+  block->hdr.len = len;
+
+  /* crc32 */
+  block->hdr.data_crc = calculate_crc32((uint8_t*)block->data, len);
+  block->hdr.hdr_crc = calculate_crc32((uint8_t*)&block->hdr, CAL_HEADER_LEN-sizeof(block->hdr.hdr_crc));
+
+}
+
+static int
+get_config_blocks_size(struct cal* c,struct cal_config* conf,struct cal_block* block, uint32_t* config_blocks_size, unsigned long flags)
+{
+  *config_blocks_size = 0;
+
+  while ( cal_nand_read_block_data(c, conf, block) >= 0 )
+  {
+    *config_blocks_size += (block->hdr.len + 0x27) & 0xFFFFFFFC;
+    block = block->next;
+
+    if ( !block )
+    {
+      if ( c->user_selectable || (flags & CAL_FLAG_USER) || !(block = c->wp_block_list) )
+        return CAL_OK;
+    }
+  }
+  return CAL_ERROR;
+}
+
+int
+cal_write_block_(struct cal *c, const char *name, const void *data, unsigned long data_len, unsigned long flags)
+{
+  uint8_t version;
+  uint32_t len_free;
+
+  uint8_t* p;
+  uint8_t* next;
+
+  uint8_t* config_area;
+  uint32_t config_area_len;
+  uint32_t config_area_end;
+
+  uint32_t len;
+  uint32_t config_blocks_size;
+
+  struct cal_config *conf;
+  struct cal_block *block;
+
+
+  cal_debug(0, "writing block '%s', data len %d", name, data_len);
+
+  if ( strlen(name) > CAL_MAX_NAME_LEN )
+  {
+    cal_error("cal_write_block: too long name");
+    return CAL_ERROR;
+  }
+
+  if ( (flags & CAL_FLAG_WRITE_ONCE) && (flags & CAL_FLAG_USER) )
+  {
+    cal_error("write-once user blocks not supported");
+    return CAL_ERROR;
+  }
+
+  block = find_block_type(c, name, flags);
+
+  if ( block )
+  {
+    if ( flags & CAL_FLAG_WRITE_ONCE )
+    {
+      cal_error("trying to overwrite write-once block");
+      return CAL_ERROR;
+    }
+    version = block->hdr.block_version + 1;
+  }
+  else
+  {
+    version = 0;
+  }
+
+  if ( !(block = (struct cal_block *)malloc(sizeof(struct cal_block))) )
+  {
+    cal_error("cal_write_block: malloc block");
+    return CAL_ERROR;
+  }
+
+  if ( !(block->data = malloc(data_len)) )
+  {
+    cal_error("cal_write_block: malloc cache");
+    free(block);
+    return CAL_ERROR;
+  }
+
+  set_header(block, name, version, data, data_len, flags);
+
+  conf = flags & CAL_FLAG_USER? &c->config_user :
+                                (flags & CAL_FLAG_WRITE_ONCE) && c->user_selectable ? &c->config_wp :
+                                                                                      &c->config[c->config_in_use];
+
+  len_free = c->erasesize + conf->map[conf->blkcnt - 1].relative;
+  len = -c->blocksize & (block->hdr.len + c->blocksize + 0x23);
+
+  cal_debug(
+    1,
+    "trying to write new%s conf block to 0x%08x (%d bytes)",
+    flags & CAL_FLAG_USER ? " user" : flags & CAL_FLAG_WRITE_ONCE ? " write-once" :"",
+    conf->first_empty, len);
+
+  if ( len_free < len )
+  {
+    cal_error("block size too big");
+    goto err;
+  }
+
+  if ( len_free >= conf->first_empty + len )
+  {
+    if( store_block(c,conf,block,len,flags) < 0 )
+      goto err;
+    else
+      return CAL_OK;
+  }
+
+  cal_debug(0, "block doesn't fit into empty space");
+
+  if ( c->user_selectable && (flags & CAL_FLAG_WRITE_ONCE) )
+  {
+    cal_error("block doesn't fit into write-once region");
+    goto err;
+  }
+
+  insert_block(c, block);
+
+  block = flags & CAL_FLAG_USER ? c->user_block_list :
+                                  c->main_block_list;
+
+  cal_debug(0, "compressing%s config area", flags & CAL_FLAG_USER ? " user" : "");
+
+  if ( block )
+  {
+    if( get_config_blocks_size(c,conf,block,&config_blocks_size, flags) < 0 )
+    {
+      cal_error("compress_config_area: invalid block data. aieee!");
+      goto err;
+    }
+  }
+  else
+    config_blocks_size = 0;
+
+  cal_debug(0, "total size of config blocks %d", config_blocks_size);
+  config_area_len = -c->blocksize & (config_blocks_size + c->blocksize - 1);
+
+  if ( config_area_len > c->erasesize * conf->blkcnt )
+  {
+    cal_error("config blocks won't fit into config area");
+    goto err;
+  }
+
+  if ( !(config_area = malloc(config_area_len)) )
+  {
+    cal_error("compress_config_area: malloc");
+    goto err;
+  }
+
+  if ( block )
+  {
+    struct cal_block * b = block;
+    p = config_area;
+
+try_next:
+
+    if ( !(flags & CAL_FLAG_USER) )
+    {
+      if(b == block)
+        b->hdr.block_version++;
+
+      while ( 1 )
+      {
+        b->hdr.hdr_crc = calculate_crc32((uint8_t*)&b->hdr, CAL_HEADER_LEN - sizeof(b->hdr.hdr_crc));
+        b->addr = p - config_area;
+
+        cal_debug(3, "writing '%s' (version %d) to idx %d",
+                  header_name(&b->hdr), b->hdr.block_version, b->addr);
+
+        memcpy(p, &b->hdr, CAL_HEADER_LEN);
+        memcpy(p + CAL_HEADER_LEN, b->data, b->hdr.len);
+
+        next = &p[b->hdr.len + CAL_HEADER_LEN];
+
+        p = next;
+        config_area_end = next - config_area;
+
+        while(config_area_end & 3)
+        {
+          *p++ = 0xFF;
+          config_area_end++;
+        }
+
+        if ( (b = b->next) )
+          goto try_next;
+
+        if ( !c->user_selectable && !(flags & CAL_FLAG_USER) && ((b = c->wp_block_list)) )
+          continue;
+
+        goto found;
+      }
+    }
+    b->hdr.block_version = 0;
+  }
+  p = config_area;
+  config_area_end = 0;
+
+found:
+
+  memset(p, 0xFF, config_area_len - config_area_end);
+
+  if ( !flags & CAL_FLAG_USER )
+    conf = &c->config[c->config_in_use?0:1];
+
+  if ( cal_nand_erase_area(c, conf) < 0
+    || cal_nand_write(c, conf, c->blocksize, config_area + c->blocksize, config_area_len - c->blocksize) < 0
+    || cal_nand_write(c, conf, 0, config_area, c->blocksize) < 0)
+  {
+    free(config_area);
+    goto err;
+  }
+
+  free(config_area);
+
+  if ( !(flags & CAL_FLAG_USER) )
+    c->config_in_use = c->config_in_use?0:1;
+
+  conf->first_empty = -c->blocksize & (config_area_len + c->blocksize - 1);
+  conf->valid = CAL_TRUE;
+
+  return CAL_OK;
+
+err:
+  free(block->data);
+  free(block);
+  return CAL_ERROR;
+}
+
+int  cal_write_block(struct cal*   cal,
+                     const char*   name,
+                     const void*   data,
+                     unsigned long data_len,
+                     unsigned long flags)
+
+{
+  int rv=CAL_ERROR;
+  sem_t *sem;
+
+  if ( sem_lock(&sem) )
+  {
+    if ( cal_init_(&cal) >= 0 )
+    {
+      rv = cal_write_block_(cal, name, data, data_len, flags);
+      cal_finish_(cal);
+    }
+    sem_unlock(sem);
+  }
+
+  return rv;
+}
+
 void main()
 {
   struct cal c;
   void* data;
+  uint8_t t[]="HELLO";
   unsigned long len;
-  if(cal_read_block(&c,"content-ver",&data,&len,1) == CAL_OK)
+  unsigned long flags = 0;
+
+  if(cal_read_block(&c,"aivo-ver",&data,&len,flags) == CAL_OK)
   {
     printf("%s\n",(char*)data);
     free(data);
+  }
+
+  if(cal_write_block(&c,"aivo-ver",t,sizeof(t),flags) == CAL_OK)
+  {
+    if(cal_read_block(&c,"aivo-ver",&data,&len,flags) == CAL_OK)
+    {
+      printf("%s\n",(char*)data);
+      free(data);
+    }
   }
 }
