@@ -745,9 +745,11 @@ check_block_header(struct cal *c, struct cal_config *config, off_t addr, struct 
 
   if ( memcmp(block_header->magic, CAL_BLOCK_HEADER_MAGIC, 4) )
   {
-    if( *(uint32_t*)block_header->magic != -1 )
+    uint32_t magic;
+    memcpy(&magic,block_header->magic,sizeof(uint32_t));
+    if( magic != -1 )
     {
-      cal_error("invalid header magic at addr 0x%08x: %08x", addr, *(uint32_t*)block_header->magic);
+      cal_error("invalid header magic at addr 0x%08x: %08x", addr, magic);
       return CAL_ERROR;
     }
     else
@@ -1621,11 +1623,22 @@ int  cal_write_block(struct cal*   cal,
   return rv;
 }
 
+void
+cal_finish(struct cal *c)
+{
+}
+
+int
+cal_init(struct cal **cal_out)
+{
+  return 0;
+}
+
 void main()
 {
   struct cal c;
   void* data;
-  uint8_t t[]="HELLO";
+  uint8_t t[]="HELLO fhdsjkfhsdkj";
   unsigned long len;
   unsigned long flags = 0;
 
