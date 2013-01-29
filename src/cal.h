@@ -1,7 +1,7 @@
 /**
    @file cal.h
 
-   @brief Maemo CALibration data access library
+   @brief Maemo Configuration Access Library
 
    Copyright (C) 2012 Ivaylo Dimitrov <freemangordon@abv.bg>
 
