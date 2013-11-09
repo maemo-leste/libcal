@@ -516,7 +516,7 @@ sem_lock(sem_t **sem)
 {
   int rv = CAL_FALSE;
 
-  *sem = sem_open("nokiacal3", O_CREAT, 0600, 1);
+  *sem = sem_open("nokiacal", O_CREAT, 0600, 1);
 
   if ( *sem )
   {
