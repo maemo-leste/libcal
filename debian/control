@@ -14,6 +14,12 @@ Description: programming interface to Nokia internet tablet calibration data
  .
  This package contains shared libraries.
 
+Package: libcal1-dbg
+Section: libs
+Architecture: any
+Depends: libcal1 (= ${Source-Version})
+Description: Debug symbols for libcal1.
+
 Package: libcal-dev
 Section: libdevel
 Architecture: any
