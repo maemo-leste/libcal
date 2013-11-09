@@ -9,6 +9,12 @@
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
 
+CFLAGS := -Wall -g -fPIC
+CFLAGS += $(if $(findstring noopt,$(DEB_BUILD_OPTIONS)),-O0,-O2)
+CFLAGS += $(if $(findstring thumb,$(DEB_BUILD_OPTIONS)),-mthumb)
+
+export CFLAGS
+
 build:
 	# Add here commands to compile the package.
 	$(MAKE)
