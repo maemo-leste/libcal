@@ -1757,7 +1757,8 @@ cal_init(struct cal **cal_out)
   return 0;
 }
 
-void main()
+#ifdef TEST
+int main()
 {
   struct cal c;
   void* data;
@@ -1780,3 +1781,4 @@ void main()
     }
   }
 }
+#endif
