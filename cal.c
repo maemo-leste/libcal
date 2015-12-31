@@ -676,7 +676,7 @@ get_offset(struct cal *c,struct  cal_config *config, off_t addr, off_t *off)
   if ( blkcnt )
   {
     i = 0;
-    while ( map->relative > addr || addr >= erasesize + map->relative )
+    while ( map->relative > addr || addr >= (off_t)erasesize + map->relative )
     {
       i++;
       if ( i == blkcnt )
@@ -694,6 +694,7 @@ int
 cal_nand_read(struct cal *c, struct cal_config *config, off_t addr, uint8_t *buf, off_t len)
 {
   size_t count;
+  ssize_t ret;
   uint32_t erasesize;
   off_t off;
 
@@ -708,7 +709,7 @@ cal_nand_read(struct cal *c, struct cal_config *config, off_t addr, uint8_t *buf
   {
     while ( 1 )
     {
-      if ( erasesize - addr % erasesize <= len )
+      if ( (off_t)erasesize - addr % (off_t)erasesize <= len )
         count = erasesize - addr % erasesize;
       else
         count = len;
@@ -727,7 +728,8 @@ cal_nand_read(struct cal *c, struct cal_config *config, off_t addr, uint8_t *buf
         goto err;
       }
 
-      if ( count != read(c->mtd_fd, buf, count) )
+      ret = read(c->mtd_fd, buf, count);
+      if ( ret < 0 || (size_t)ret != count )
         break;
 
       len -= count;
@@ -869,7 +871,7 @@ check_block_header(struct cal *c, struct cal_config *config, off_t addr, struct 
 
   if ( memcmp(block_header->magic, CAL_BLOCK_HEADER_MAGIC, 4) )
   {
-    uint32_t magic;
+    int32_t magic;
     memcpy(&magic,block_header->magic,sizeof(uint32_t));
     if( magic != -1 )
     {
@@ -1290,7 +1292,8 @@ static int
 verify_write(struct cal *c, const void* data, off_t offset)
 {
   uint8_t buf[2048];
-  int i;
+  uint32_t i;
+  ssize_t ret;
 
   if ( lseek(c->mtd_fd, offset, SEEK_SET) < 0 )
   {
@@ -1298,7 +1301,8 @@ verify_write(struct cal *c, const void* data, off_t offset)
     return CAL_ERROR;
   }
 
-  if ( c->blocksize != read(c->mtd_fd, buf, c->blocksize) )
+  ret = read(c->mtd_fd, buf, c->blocksize);
+  if ( ret < 0 || c->blocksize != (size_t)ret )
   {
     cal_error("verify_write: read (%d bytes at around %08x): %s",
               c->blocksize, offset, strerror(errno));
@@ -1329,6 +1333,7 @@ int cal_nand_write(struct cal *c, struct cal_config *area, off_t addr, const voi
   uint32_t bytes;
   uint32_t i;
   off_t offset;
+  ssize_t ret;
 
   erasesize = c->mtd_info.erasesize;
 
@@ -1386,7 +1391,8 @@ next:
       goto err;
     }
 
-    if ( c->blocksize != write(c->mtd_fd, data, c->blocksize) )
+    ret = write(c->mtd_fd, data, c->blocksize);
+    if ( ret < 0 || c->blocksize != (size_t)ret )
     {
       cal_error("nand_write: write (%d bytes at around %08x): %s",
                 bytes, offset, strerror(errno));
