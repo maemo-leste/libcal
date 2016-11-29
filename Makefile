@@ -1,7 +1,7 @@
 all: libcal.so.1.0.0
 
 libcal.so.1.0.0: cal.c
-	$(CC) $(CFLAGS) $(LDFLAGS) -lrt -shared -Wl,-soname=libcal.so.1 $^ -o $@
+	$(CC) $(CFLAGS) $(LDFLAGS) -shared -Wl,-soname=libcal.so.1 $^ -o $@ -lpthread
 
 clean:
 	$(RM) libcal.so.1.0.0
