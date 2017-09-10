@@ -1,3 +1,9 @@
+libcal (0.3-2) unstable; urgency=medium
+
+  * Enable git builds
+
+ -- Ivan J. <parazyd@dyne.org>  Sun, 10 Sep 2017 20:05:00 +0200
+
 libcal (0.3-1) unstable; urgency=low
 
   * Initial release
