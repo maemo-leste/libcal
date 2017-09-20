@@ -15,32 +15,32 @@ CFLAGS += $(if $(findstring thumb,$(DEB_BUILD_OPTIONS)),-mthumb)
 
 export CFLAGS
 
-build:
+build build-arch:
 	# Add here commands to compile the package.
 	$(MAKE)
 
 clean:
-	dh_testdir
-	dh_testroot
+	dh_testdir -a
+	dh_testroot -a
 
 	# Add here commands to clean up after the build process.
 	$(MAKE) clean
 
-	dh_clean
+	dh_clean -a
 
-binary: build
-	dh_testdir
-	dh_testroot
-	dh_clean -k
-	dh_installdirs
+binary-arch: build
+	dh_testdir -a
+	dh_testroot -a
+	dh_clean -k -a
+	dh_installdirs -a
 
 	# Add here commands to install the package into debian/tmp
 	$(MAKE) DESTDIR=$(CURDIR)/debian/tmp install
 
-	dh_installchangelogs
+	dh_installchangelogs -a
 #	dh_installdocs
 #	dh_installexamples
-	dh_install
+	dh_install -a
 #	dh_installmenu
 #	dh_installdebconf
 #	dh_installlogrotate
@@ -50,18 +50,21 @@ binary: build
 #	dh_installinit
 #	dh_installcron
 #	dh_installinfo
-	dh_installman
-	dh_link
-	dh_strip --dbg-package="libcal1-dbg"
-	dh_compress
-	dh_fixperms
+	dh_installman -a
+	dh_link -a
+	dh_strip --dbg-package="libcal1-dbg" -a
+	dh_compress -a
+	dh_fixperms -a
 #	dh_perl
 #	dh_python
-	dh_makeshlibs
-	dh_installdeb
-	dh_shlibdeps
-	dh_gencontrol
-	dh_md5sums
-	dh_builddeb
+	dh_makeshlibs -a
+	dh_installdeb -a
+	dh_shlibdeps -a
+	dh_gencontrol -a
+	dh_md5sums -a
+	dh_builddeb -a
+
+
+binary: binary-arch
 
 .PHONY: build clean install
