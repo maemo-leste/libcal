@@ -3,6 +3,7 @@
 
    @brief Maemo Configuration Access Library
 
+   Copyright (C) 2009 Marat Radchenko <marat@slonopotamus.org>
    Copyright (C) 2012 Ivaylo Dimitrov <freemangordon@abv.bg>
 
    This file is part of libcal.
