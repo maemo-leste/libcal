@@ -1,9 +1,0 @@
-prefix=/usr
-includedir=${prefix}/include
-
-Name: libcal
-Description: Configuration Access Library
-Version: 0.58
-Requires:
-Libs: -lcal
-Cflags: -I${includedir}
