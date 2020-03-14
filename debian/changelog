@@ -1,3 +1,10 @@
+libcal (0.3.1-1) unstable; urgency=medium
+
+  * Port build to GNU autoconf.
+  * Port debian packaging to debhelper 10.
+
+ -- Ivan J. <parazyd@dyne.org>  Sat, 14 Mar 2020 19:14:39 +0100
+
 libcal (0.3-2) unstable; urgency=medium
 
   * Enable git builds
