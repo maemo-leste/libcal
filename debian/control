@@ -1,8 +1,8 @@
 Source: libcal
 Priority: required
-Maintainer: Pali Rohár <pali.rohar@gmail.com>
-Build-Depends: debhelper (>= 5)
-Standards-Version: 3.9.2
+Maintainer: Ivan J. <parazyd@dyne.org>
+Build-Depends: debhelper (>= 10)
+Standards-Version: 4.2.0
 Section: libs
 
 Package: libcal1
@@ -13,12 +13,6 @@ Description: programming interface to Nokia internet tablet calibration data
  libcal provides an api to read and modify the calibration data area on Nokia internet tablets
  .
  This package contains shared libraries.
-
-Package: libcal1-dbg
-Section: libs
-Architecture: any
-Depends: libcal1 (= ${source:Version})
-Description: Debug symbols for libcal1.
 
 Package: libcal-dev
 Section: libdevel
