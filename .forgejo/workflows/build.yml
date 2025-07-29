@@ -2,7 +2,4 @@ on: [push]
 
 jobs:
   call-workflow:
-    runs-on: docker
-    container:
-      image: ubuntu:noble
     uses: leste/forgejo-workflows/.forgejo/workflows/maemo-entry.yml@master
