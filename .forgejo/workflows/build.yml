@@ -1,11 +1,8 @@
 on: [push]
 
 jobs:
-  test_job:
+  call-workflow:
     runs-on: docker
     container:
       image: ubuntu:noble
-    name: Test job 2
-    steps:
-      - name: Build maemo package
-        uses: https://git.maemo.org/leste/forgejo-workflows/maemo-build@master
+    uses: leste/forgejo-workflows/.forgejo/workflows/maemo-entry.yml@master
