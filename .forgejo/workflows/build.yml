@@ -3,4 +3,4 @@ on: [push]
 jobs:
   call-workflow:
     runs-on: docker
-    uses: https://git.maemo.org/leste/forgejo-workflows/.forgejo/workflows/maemo-entry.yml@master
+    uses: leste/forgejo-workflows/.forgejo/workflows/maemo-entry.yml@master
