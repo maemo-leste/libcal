@@ -4,9 +4,10 @@ jobs:
   call-workflow:
     strategy:
       matrix:
-        - release: chimaera
-        - release: daedalus
-        - release: excalibur
+        include:
+          - release: chimaera
+          - release: daedalus
+          - release: excalibur
     runs-on: docker
     container:
       image: docker.io/devuan/devuan:${{ matrix.release }}
@@ -17,9 +18,10 @@ jobs:
   call-workflow-arm64:
     strategy:
       matrix:
-        - release: chimaera
-        - release: daedalus
-        - release: excalibur
+        include:
+          - release: chimaera
+          - release: daedalus
+          - release: excalibur
     runs-on: docker-arm64
     container:
       image: docker.io/devuan/devuan:${{ matrix.release }}
