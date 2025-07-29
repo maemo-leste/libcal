@@ -3,4 +3,6 @@ on: [push]
 jobs:
   call-workflow:
     runs-on: docker
+    container:
+      image: devuan/devuan:daedalus
     uses: leste/forgejo-workflows/.forgejo/workflows/maemo-entry.yml@master
