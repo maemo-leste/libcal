@@ -2,4 +2,5 @@ on: [push]
 
 jobs:
   call-workflow:
+    runs-on: daedalus
     uses: leste/forgejo-workflows/.forgejo/workflows/maemo-entry.yml@master
