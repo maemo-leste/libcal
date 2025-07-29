@@ -4,11 +4,10 @@ jobs:
   call-workflow:
     strategy:
       matrix:
-        - os: docker
-          release: daedalus
-        - os: docker-arm64
-          release: daedalus
-    runs-on: [docker, docker-arm64]
+        - release: chimaera
+        - release: daedalus
+        - release: excalibur
+    runs-on: docker
     container:
       image: docker.io/devuan/devuan:${{ matrix.release }}
     name: Matrix job
