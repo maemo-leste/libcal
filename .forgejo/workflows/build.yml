@@ -1,0 +1,10 @@
+on: [push]
+
+jobs:
+  test_job:
+    runs-on: docker
+    name: Test job
+    steps:
+      - uses: actions/checkout@v4
+      - id: foo
+        uses: leste/forgejo-workflows/maemo-build@v1
