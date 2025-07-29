@@ -8,8 +8,8 @@ jobs:
           release: daedalus
         - os: docker-arm64
           release: daedalus
-    runs-on: ${{ matrix.os }}
+    runs-on: [docker, docker-arm64]
     container:
       image: docker.io/devuan/devuan:${{ matrix.release }}
-    name: docker daedalus
+    name: Matrix job
     uses: leste/forgejo-workflows/.forgejo/workflows/maemo-entry.yml@master
