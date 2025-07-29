@@ -4,5 +4,5 @@ jobs:
   call-workflow:
     runs-on: docker
     container:
-      image: devuan/devuan:daedalus
+      image: devuan:daedalus
     uses: leste/forgejo-workflows/.forgejo/workflows/maemo-entry.yml@master
