@@ -1,6 +1,15 @@
 on: [push]
 
 jobs:
+  test_job_dae:
+    if: ${{ forge.ref_name == 'daedalus' }}
+    runs-on: docker
+    container:
+      image: docker.io/devuan/devuan:${{ forge.ref_name }}
+    name: Test job 2
+    steps:
+      - name: Build maemo package
+        uses: https://git.maemo.org/leste/forgejo-workflows/maemo-build@master
   test_job:
     if: ${{ forge.ref_name == 'actions' }}
     runs-on: daedalus
