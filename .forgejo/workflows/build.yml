@@ -6,4 +6,4 @@ jobs:
     name: Test job
     steps:
       - uses: actions/checkout@v4
-      - uses: https://git.maemo.org/leste/forgejo-workflows/maemo-build@v1
+      - uses: https://git.maemo.org/leste/forgejo-workflows/maemo-build@e89f8fcedb25a8abcb4b733f7241f0c29d748fb5
