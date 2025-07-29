@@ -2,14 +2,14 @@ on: [push]
 
 jobs:
   test_job:
-    if: ${{ env.FORGEJO_REF_NAME == 'actions' }}
+    if: ${{ forge.ref_name == 'actions' }}
     runs-on: daedalus
     name: Test job 2
     steps:
       - name: Build maemo package
         uses: https://git.maemo.org/leste/forgejo-workflows/maemo-build@master
   test_job_excalibur:
-    if: ${{ env.FORGEJO_REF_NAME == 'actions-ex' }}
+    if: ${{ forge.ref_name == 'actions-ex' }}
     runs-on: excalibur
     name: Test job 3
     steps:
