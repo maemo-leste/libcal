@@ -2,20 +2,14 @@ on: [push]
 
 jobs:
   call-workflow:
-    if: ${{ forge.ref_name == 'daedalus' }}
-    runs-on: docker
+    strategy:
+      matrix:
+        - os: docker
+          release: daedalus
+        - os: docker-arm64
+          release: daedalus
+    runs-on: ${{ matrix.os }}
     container:
-      image: docker.io/devuan/devuan:${{ forge.ref_name }}
+      image: docker.io/devuan/devuan:${{ matrix.release }}
     name: docker daedalus
-    uses: leste/forgejo-workflows/.forgejo/workflows/maemo-entry.yml@master
-
-  test_job:
-    if: ${{ forge.ref_name == 'actions' }}
-    runs-on: daedalus
-    name: Test job daedalus
-    uses: leste/forgejo-workflows/.forgejo/workflows/maemo-entry.yml@master
-  test_job_excalibur:
-    if: ${{ forge.ref_name == 'actions-ex' }}
-    runs-on: excalibur
-    name: Test job excalibur
     uses: leste/forgejo-workflows/.forgejo/workflows/maemo-entry.yml@master
