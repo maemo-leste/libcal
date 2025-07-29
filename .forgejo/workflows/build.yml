@@ -11,7 +11,9 @@ jobs:
     container:
       image: docker.io/devuan/devuan:${{ matrix.release }}
     name: Matrix job
-    uses: leste/forgejo-workflows/.forgejo/workflows/maemo-entry.yml@master
+    steps:
+      - name: Build maemo package
+        uses: https://git.maemo.org/leste/forgejo-workflows/maemo-build@master
   call-workflow-arm64:
     strategy:
       matrix:
@@ -22,4 +24,6 @@ jobs:
     container:
       image: docker.io/devuan/devuan:${{ matrix.release }}
     name: Matrix job
-    uses: leste/forgejo-workflows/.forgejo/workflows/maemo-entry.yml@master
+    steps:
+      - name: Build maemo package
+        uses: https://git.maemo.org/leste/forgejo-workflows/maemo-build@master
