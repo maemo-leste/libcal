@@ -5,4 +5,4 @@ jobs:
     runs-on: docker
     name: Test job 2
     steps:
-      - uses: https://git.maemo.org/leste/forgejo-workflows/maemo-build@10ef64f6b48fec6b98f58f6d3e682e0774f9c470
+      - uses: https://git.maemo.org/leste/forgejo-workflows/maemo-build@40a5b25fc1b8ba252aa95d84a84cc751a88f1447
