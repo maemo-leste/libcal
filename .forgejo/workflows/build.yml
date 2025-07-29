@@ -2,7 +2,7 @@ on: [push]
 
 jobs:
   test_job:
-    runs-on: daedalus
+    runs-on: devuan:devuan/daedalus
     name: Test job 2
     steps:
       - name: Build maemo package
