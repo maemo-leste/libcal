@@ -2,9 +2,7 @@ on: [push]
 
 jobs:
   test_job:
-    runs-on: docker
-    container:
-      image: devuan/devuan:daedalus
+    runs-on: daedalus
     name: Test job 2
     steps:
       - name: Build maemo package
