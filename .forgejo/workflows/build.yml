@@ -1,26 +1,21 @@
 on: [push]
 
 jobs:
-  test_job_dae:
+  call-workflow:
     if: ${{ forge.ref_name == 'daedalus' }}
     runs-on: docker
     container:
       image: docker.io/devuan/devuan:${{ forge.ref_name }}
-    name: Test job 2
-    steps:
-      - name: Build maemo package
-        uses: https://git.maemo.org/leste/forgejo-workflows/maemo-build@master
+    name: docker daedalus
+    uses: leste/forgejo-workflows/.forgejo/workflows/maemo-entry.yml@master
+
   test_job:
     if: ${{ forge.ref_name == 'actions' }}
     runs-on: daedalus
-    name: Test job 2
-    steps:
-      - name: Build maemo package
-        uses: https://git.maemo.org/leste/forgejo-workflows/maemo-build@master
+    name: Test job daedalus
+    uses: leste/forgejo-workflows/.forgejo/workflows/maemo-entry.yml@master
   test_job_excalibur:
     if: ${{ forge.ref_name == 'actions-ex' }}
     runs-on: excalibur
-    name: Test job 3
-    steps:
-      - name: Build maemo package
-        uses: https://git.maemo.org/leste/forgejo-workflows/maemo-build@master
+    name: Test job excalibur
+    uses: leste/forgejo-workflows/.forgejo/workflows/maemo-entry.yml@master
