@@ -28,3 +28,16 @@ jobs:
     steps:
       - name: Build maemo package
         uses: https://git.maemo.org/leste/forgejo-workflows/maemo-build@master
+  call-workflow-armhf:
+    strategy:
+      matrix:
+        include:
+          - release: docker.io/arm32v7/debian:bookworm
+          - release: docker.io/arm32v7/debian:trixie
+    runs-on: docker-armhf
+    container:
+      image: ${{ matrix.release }}
+    name: Matrix job
+    steps:
+      - name: Build maemo package
+        uses: https://git.maemo.org/leste/forgejo-workflows/maemo-build@master
