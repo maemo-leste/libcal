@@ -5,9 +5,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - release: docker.io/devuan/devuan:chimaera
-          - release: docker.io/devuan/devuan:daedalus
-          - release: docker.io/devuan/devuan:excalibur
+          - release: git.maemo.org/leste-cicd/daedalus-amd64:latest
     runs-on: docker
     container:
       image: ${{ matrix.release }}
@@ -19,8 +17,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - release: docker.io/arm64v8/debian:bookworm
-          - release: docker.io/arm64v8/debian:trixie
+          - release: git.maemo.org/leste-cicd/daedalus-arm64:latest
     runs-on: docker-arm64
     container:
       image: ${{ matrix.release }}
@@ -32,8 +29,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - release: docker.io/arm32v7/debian:bookworm
-          - release: docker.io/arm32v7/debian:trixie
+          - release: git.maemo.org/leste-cicd/daedalus-armhf:latest
     runs-on: docker-armhf
     container:
       image: ${{ matrix.release }}
