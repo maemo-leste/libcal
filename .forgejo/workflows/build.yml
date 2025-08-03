@@ -2,4 +2,4 @@ on: [push]
 
 jobs:
   call-workflow:
-    uses: leste/forgejo-workflows/.forgejo/workflows/maemo-entry.yml@master
+    uses: leste-cicd/forgejo-workflows/.forgejo/workflows/maemo-entry.yml@master
