@@ -2,5 +2,4 @@ on: [push]
 
 jobs:
   call-workflow:
-    runs-on: docker
     uses: leste/forgejo-workflows/.forgejo/workflows/maemo-entry.yml@master
