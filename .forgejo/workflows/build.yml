@@ -13,5 +13,5 @@
 on: [push]
 
 jobs:
-  call-workflow-newname2:
+  call-workflow-newname3:
     uses: leste-cicd/forgejo-workflows/.forgejo/workflows/maemo-entry.yml@master
