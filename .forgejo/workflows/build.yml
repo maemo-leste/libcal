@@ -9,6 +9,8 @@
 #
 # For the Forgejo lacking features / bugs refer to
 # https://codeberg.org/forgejo/forgejo/issues/8780
+#
+# Test change to trigger build 2
 
 on: [push]
 
