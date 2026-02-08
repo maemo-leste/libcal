@@ -15,6 +15,12 @@ endif
 CFLAGS_MAINT  += -Wall -g -fPIC
 LDFLAGS_MAINT += -Wl,--as-needed
 
+ifeq ($(DEB_HOST_ARCH), armhf)
+# On Trixie/Excalibur, ensure we do not have 64 bit off_t as this currently
+# breaks libcal
+CFLAGS_MAINT  += -D_FILE_OFFSET_BITS=32 -D_TIME_BITS=32
+endif
+
 export DEB_CFLAGS_MAINT_APPEND  = $(CFLAGS_MAINT)
 export DEB_LDFLAGS_MAINT_APPEND = $(LDFLAGS_MAINT)
 
