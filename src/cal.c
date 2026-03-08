@@ -1327,7 +1327,8 @@ verify_write(struct cal *c, const void* data, off_t offset)
   return CAL_OK;
 }
 
-int cal_nand_write(struct cal *c, struct cal_config *area, off_t addr, const void* data, unsigned int len)
+int cal_nand_write(struct cal *c, struct cal_config *area, off_t addr,
+                   const void *data, unsigned int len)
 {
   int rv = CAL_OK;
   uint32_t erasesize;
@@ -1400,11 +1401,11 @@ next:
       goto err;
     }
 
-    if(verify_write(c,data,offset) < 0)
+    if(verify_write(c, data, offset) < 0)
       goto err;
 
     offset += c->blocksize;
-    data += c->blocksize;
+    data = ((const uint8_t *)data) + c->blocksize;
 
     i++;
 
