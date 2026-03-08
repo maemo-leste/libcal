@@ -607,14 +607,14 @@ cal_nand_erase_area(struct cal *c, struct cal_config *conf)
     {
       struct erase_info_user ei;
 
-      cal_debug(1, "erasing block at 0x%08x", map->absolute);
+      cal_debug(1, "erasing block at 0x%08jx", (uintmax_t)map->absolute);
 
       ei.start = map->absolute;
       ei.length = c->erasesize;
 
       if ( ioctl(c->mtd_fd, MEMERASE, &ei) < 0 )
       {
-        cal_error("MEMERASE 0x%08x: %s", map->absolute, strerror(errno));
+        cal_error("MEMERASE 0x%08jx: %s", (uintmax_t)map->absolute, strerror(errno));
         return CAL_ERROR;
         break;
       }
@@ -692,7 +692,8 @@ get_offset(struct cal *c,struct  cal_config *config, off_t addr, off_t *off)
 }
 
 int
-cal_nand_read(struct cal *c, struct cal_config *config, off_t addr, uint8_t *buf, off_t len)
+cal_nand_read(struct cal *c, struct cal_config *config, off_t addr,
+              uint8_t *buf, off_t len)
 {
   size_t count;
   ssize_t ret;
@@ -704,7 +705,9 @@ cal_nand_read(struct cal *c, struct cal_config *config, off_t addr, uint8_t *buf
   if ( c->user_selectable && config->write_once)
     onen_set_otp_mode(c->mtd_fd, 1);
 
-  cal_debug(2, "cal_nand_read: %u bytes from %s addr 0x%08x%s", len, config->name, addr, config->write_once?" OTP":"");
+  cal_debug(2, "cal_nand_read: %ju bytes from %s addr 0x%08jx%s",
+            (uintmax_t)len, config->name, (uintmax_t)addr,
+            config->write_once?" OTP":"");
 
   if ( len )
   {
@@ -717,7 +720,7 @@ cal_nand_read(struct cal *c, struct cal_config *config, off_t addr, uint8_t *buf
 
       if ( get_offset(c, config, addr, &off) < 0 )
       {
-        cal_error("nand_read: invalid addr: 0x%08x", addr);
+        cal_error("nand_read: invalid addr: 0x%08jx", (uintmax_t)addr);
         goto err;
       }
 
@@ -725,7 +728,7 @@ cal_nand_read(struct cal *c, struct cal_config *config, off_t addr, uint8_t *buf
 
       if ( lseek(c->mtd_fd, off, SEEK_SET) < 0 )
       {
-        cal_error("nand_read: lseek %08x: %s", off, strerror(errno));
+        cal_error("nand_read: lseek %08jx: %s", (uintmax_t)off, strerror(errno));
         goto err;
       }
 
@@ -741,7 +744,8 @@ cal_nand_read(struct cal *c, struct cal_config *config, off_t addr, uint8_t *buf
       buf += count;
       addr += count;
     }
-    cal_error("nand_read: read (%d bytes at %08x): %s", count, off, strerror(errno));
+    cal_error("nand_read: read (%d bytes at %08jx): %s", count,
+              (uintmax_t)off, strerror(errno));
     goto err;
   }
 
@@ -772,9 +776,9 @@ cal_nand_read_block_data(struct cal *c, struct cal_config *config, struct cal_bl
   }
 
   cal_debug(0,
-            "reading block from %s addr 0x%08x, name '%s', len %u",
+            "reading block from %s addr 0x%08jx, name '%s', len %u",
             config->name,
-            block->addr,
+            (uintmax_t)block->addr,
             header_name(&block->hdr),
             block->hdr.len);
 
@@ -794,8 +798,8 @@ cal_nand_read_block_data(struct cal *c, struct cal_config *config, struct cal_bl
       }
 
       cal_error(
-        "data CRC mismatch on conf block at addr 0x%08x, name '%s' (calc %08x vs. %08x)",
-        block->addr,
+        "data CRC mismatch on conf block at addr 0x%08jx, name '%s' (calc %08x vs. %08x)",
+        (uintmax_t)block->addr,
         header_name(&block->hdr),
         crc,
         hdr_crc);
@@ -858,7 +862,8 @@ err:
 }
 
 static int
-check_block_header(struct cal *c, struct cal_config *config, off_t addr, struct cal_block_header *block_header)
+check_block_header(struct cal *c, struct cal_config *config, off_t addr,
+                   struct cal_block_header *block_header)
 {
   uint32_t crc;
 
@@ -866,7 +871,8 @@ check_block_header(struct cal *c, struct cal_config *config, off_t addr, struct 
 
   if ( cal_nand_read(c, config, addr, (uint8_t*)block_header, CAL_HEADER_LEN) < 0 )
   {
-    cal_error("failed to read %d bytes at %s 0x%08x", CAL_HEADER_LEN, config->name, addr);
+    cal_error("failed to read %d bytes at %s 0x%08jx",
+              CAL_HEADER_LEN, config->name, (uintmax_t)addr);
     return CAL_ERROR;
   }
 
@@ -876,7 +882,8 @@ check_block_header(struct cal *c, struct cal_config *config, off_t addr, struct 
     memcpy(&magic,block_header->magic,sizeof(uint32_t));
     if( magic != -1 )
     {
-      cal_error("invalid header magic at addr 0x%08x: %08x", addr, magic);
+      cal_error("invalid header magic at addr 0x%08x: %08jx",
+                (uintmax_t)addr, magic);
       return CAL_ERROR;
     }
     else
@@ -885,19 +892,21 @@ check_block_header(struct cal *c, struct cal_config *config, off_t addr, struct 
 
   if ( block_header->hdr_version != CAL_HEADER_VERSION )
   {
-    cal_error("invalid header version at addr %08x: %d", addr, block_header->hdr_version);
+    cal_error("invalid header version at addr %08jx: %d",
+              (uintmax_t)addr, block_header->hdr_version);
     return CAL_ERROR;
   }
 
   if ( (crc = calculate_crc32((uint8_t*)block_header, CAL_HEADER_LEN-sizeof(block_header->hdr_crc))) != block_header->hdr_crc )
   {
-    cal_error("header CRC mismatch at addr %08x: calc %08x vs. %08x", addr, crc, block_header->hdr_crc);
+    cal_error("header CRC mismatch at addr %08jx: calc %08x vs. %08x",
+              (uintmax_t)addr, crc, block_header->hdr_crc);
     return CAL_ERROR;
   }
 
   if ( c->erasesize + config->map[config->blkcnt - 1].relative < addr + block_header->len + 4 )
   {
-    cal_error("block at addr %08x runs over device size", addr);
+    cal_error("block at addr %08jx runs over device size", (uintmax_t)addr);
     return CAL_ERROR;
   }
 
@@ -1020,10 +1029,10 @@ scan_block_headers(struct cal *c, struct cal_config *config, uint16_t type)
       if ( rv < 0 )
         break;
 
-      cal_debug(1, "found block '%s' at %s vaddr %08x (ver %d, len %d)",
+      cal_debug(1, "found block '%s' at %s vaddr %08jx (ver %d, len %d)",
                 header_name(&block_header),
                 config->name,
-                addr,
+                (uintmax_t)addr,
                 block_header.block_version, block_header.len);
 
       if ( type & CAL_FLAG_USER )
@@ -1083,7 +1092,7 @@ scan_block_headers(struct cal *c, struct cal_config *config, uint16_t type)
 
 out:
   config->first_empty = (-c->blocksize) & (c->blocksize + addr - 1);
-  cal_debug(1, "%s empty area starts at 0x%08x", config->name, addr);
+  cal_debug(1, "%s empty area starts at 0x%08jx", config->name, (uintmax_t)addr);
   return CAL_OK;
 
 }
@@ -1298,15 +1307,16 @@ verify_write(struct cal *c, const void* data, off_t offset)
 
   if ( lseek(c->mtd_fd, offset, SEEK_SET) < 0 )
   {
-    cal_error("verify_write: lseek %08x: %s", offset, strerror(errno));
+    cal_error("verify_write: lseek %08jx: %s",
+              (uintmax_t)offset, strerror(errno));
     return CAL_ERROR;
   }
 
   ret = read(c->mtd_fd, buf, c->blocksize);
   if ( ret < 0 || c->blocksize != (size_t)ret )
   {
-    cal_error("verify_write: read (%d bytes at around %08x): %s",
-              c->blocksize, offset, strerror(errno));
+    cal_error("verify_write: read (%d bytes at around %08jx): %s",
+              c->blocksize, (uintmax_t)offset, strerror(errno));
     return CAL_ERROR;
   }
 
@@ -1317,8 +1327,8 @@ verify_write(struct cal *c, const void* data, off_t offset)
   }
   if (c->blocksize &&  ( i < c->blocksize && ((uint8_t*)data)[i] != buf[i]) )
   {
-    cal_error("verify error at paddr 0x%08x: read 0x%02x, want 0x%02x",
-              ((uint8_t*)offset)+i,
+    cal_error("verify error at paddr 0x%08jx: read 0x%02x, want 0x%02x",
+              ((uintmax_t)offset) + i,
               buf[i],
               ((uint8_t*)data)[i]);
     return CAL_ERROR;
@@ -1342,8 +1352,8 @@ int cal_nand_write(struct cal *c, struct cal_config *area, off_t addr,
   if ( addr % c->blocksize ||
        len % c->blocksize )
   {
-    cal_error("nand_write: both addr and len must be aligned on page boundary (0x%08x, %d)",
-              addr,
+    cal_error("nand_write: both addr and len must be aligned on page boundary (0x%08jx, %d)",
+              (uintmax_t)addr,
               len,
               len / c->blocksize);
     return CAL_ERROR;
@@ -1364,11 +1374,11 @@ int cal_nand_write(struct cal *c, struct cal_config *area, off_t addr,
 
     if ( get_offset(c, area, addr, &offset) < 0 )
     {
-      cal_error("nand_write: invalid addr: 0x%08x", addr);
+      cal_error("nand_write: invalid addr: 0x%08jx", (uintmax_t)addr);
       goto err;
     }
 
-    cal_debug(2, "nand_write: %d bytes to 0x%08x", bytes, offset);
+    cal_debug(2, "nand_write: %d bytes to 0x%08jx", bytes, (uintmax_t)offset);
 
     if ( bytes / c->blocksize > 0 )
       break;
@@ -1389,15 +1399,16 @@ next:
   {
     if ( lseek(c->mtd_fd, offset, 0) < 0 )
     {
-      cal_error("nand_write: lseek %08x: %s", offset, strerror(errno));
+      cal_error("nand_write: lseek %08jx: %s",
+                (uintmax_t)offset, strerror(errno));
       goto err;
     }
 
     ret = write(c->mtd_fd, data, c->blocksize);
     if ( ret < 0 || c->blocksize != (size_t)ret )
     {
-      cal_error("nand_write: write (%d bytes at around %08x): %s",
-                bytes, offset, strerror(errno));
+      cal_error("nand_write: write (%d bytes at around %08jx): %s",
+                bytes, (uintmax_t)offset, strerror(errno));
       goto err;
     }
 
@@ -1670,8 +1681,8 @@ try_next:
         b->hdr.hdr_crc = calculate_crc32((uint8_t*)&b->hdr, CAL_HEADER_LEN - sizeof(b->hdr.hdr_crc));
         b->addr = p - config_area;
 
-        cal_debug(3, "writing '%s' (version %d) to idx %d",
-                  header_name(&b->hdr), b->hdr.block_version, b->addr);
+        cal_debug(3, "writing '%s' (version %d) to idx %jd",
+                  header_name(&b->hdr), b->hdr.block_version, (intmax_t)b->addr);
 
         memcpy(p, &b->hdr, CAL_HEADER_LEN);
         memcpy(p + CAL_HEADER_LEN, b->data, b->hdr.len);
