@@ -11,5 +11,5 @@ jobs:
     uses: leste-cicd/forgejo-workflows/.forgejo/workflows/maemo-entry.yml@master
     secrets: inherit
     with:
-      only_arch: 'true'
-      build_arm64: 'true'
+      only-arch: 'true'
+      build-arm64: 'true'
