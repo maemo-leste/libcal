@@ -8,7 +8,7 @@ enable-email-notifications: true
 
 jobs:
   call-reusable-workflow:
-    uses: leste-cicd/forgejo-workflows/.forgejo/workflows/maemo-entry.yml@master
+    uses: leste-cicd/forgejo-workflows/.forgejo/workflows/maemo-entry.yml@try-arch
     secrets: inherit
     with:
       only-arch: 'true'
